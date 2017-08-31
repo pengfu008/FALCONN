@@ -18,6 +18,8 @@
 #include "../core/polytope_hash.h"
 #include "../core/probing_hash_table.h"
 #include "../core/stl_hash_table.h"
+#include "../lsh_nn_table.h"
+
 
 namespace falconn {
 namespace wrapper {
@@ -553,7 +555,7 @@ template <typename PointType, typename KeyType, typename DistanceType,
           typename DistanceFunction, typename LSHTable, typename LSHFunction,
           typename HashTableFactory, typename CompositeHashTable,
           typename DataStorage>
-class LSHNNTableWrapper : public LSHNearestNeighborTable<PointType, KeyType> {
+class LSHNNTableWrapper : public LSHNearestNeighborTable<PointType, DataStorage, KeyType> {
  public:
   LSHNNTableWrapper(std::unique_ptr<LSHFunction> lsh,
                     std::unique_ptr<LSHTable> lsh_table,
@@ -604,6 +606,15 @@ class LSHNNTableWrapper : public LSHNearestNeighborTable<PointType, KeyType> {
     return std::move(nn_query_pool);
   }
 
+  // pf add PlainArrayPointSet<PointType>&
+  void insert(DataStorage& points) {
+      lsh_table_->insert(points);
+  }
+
+  void remove(int_fast64_t point_index) {
+      lsh_table_->remove(point_index);
+  }
+
   ~LSHNNTableWrapper() {}
 
  protected:
@@ -626,7 +637,7 @@ class StaticTableFactory {
                      const LSHConstructionParameters& params)
       : points_(points), params_(params) {}
 
-  std::unique_ptr<LSHNearestNeighborTable<PointType, KeyType>> setup() {
+  std::unique_ptr<LSHNearestNeighborTable<PointType, DataStorageType, KeyType>> setup() {
     if (params_.dimension < 1) {
       throw LSHNNTableSetupError(
           "Point dimension must be at least 1. Maybe "
@@ -674,8 +685,7 @@ class StaticTableFactory {
     }
 
     data_storage_ = std::move(
-        DataStorageAdapter<PointSet>::template construct_data_storage<KeyType>(
-            points_));
+        DataStorageAdapter<PointSet>::template construct_data_storage<KeyType>(points_));
 
     ComputeNumberOfHashBits<PointType> helper;
     num_bits_ = helper.compute(params_);
@@ -777,52 +787,54 @@ class StaticTableFactory {
       std::unique_ptr<typename HashTable::Factory> factory(
           new typename HashTable::Factory(1 << num_bits_));
 
-      typedef core::StaticCompositeHashTable<HashType, KeyType, HashTable>
+      typedef core::DynamicCompositeHashTable<HashType, KeyType, HashTable>
           CompositeTable;
       std::unique_ptr<CompositeTable> composite_table(
           new CompositeTable(params_.l, factory.get()));
       setup4(std::tuple_cat(std::move(vals),
                             std::make_tuple(std::move(factory)),
                             std::make_tuple(std::move(composite_table))));
-    } else if (params_.storage_hash_table ==
-               StorageHashTable::BitPackedFlatHashTable) {
-      typedef core::BitPackedFlatHashTable<HashType> HashTable;
-      std::unique_ptr<typename HashTable::Factory> factory(
-          new typename HashTable::Factory(1 << num_bits_, n_));
+    }
+//    else if (params_.storage_hash_table ==
+//               StorageHashTable::BitPackedFlatHashTable) {
+//      typedef core::BitPackedFlatHashTable<HashType> HashTable;
+//      std::unique_ptr<typename HashTable::Factory> factory(
+//          new typename HashTable::Factory(1 << num_bits_, n_));
 
-      typedef core::StaticCompositeHashTable<HashType, KeyType, HashTable>
-          CompositeTable;
-      std::unique_ptr<CompositeTable> composite_table(
-          new CompositeTable(params_.l, factory.get()));
-      setup4(std::tuple_cat(std::move(vals),
-                            std::make_tuple(std::move(factory)),
-                            std::make_tuple(std::move(composite_table))));
-    } else if (params_.storage_hash_table == StorageHashTable::STLHashTable) {
-      typedef core::STLHashTable<HashType> HashTable;
-      std::unique_ptr<typename HashTable::Factory> factory(
-          new typename HashTable::Factory());
+//      typedef core::DynamicCompositeHashTable<HashType, KeyType, HashTable>
+//          CompositeTable;
+//      std::unique_ptr<CompositeTable> composite_table(
+//          new CompositeTable(params_.l, factory.get()));
+//      setup4(std::tuple_cat(std::move(vals),
+//                            std::make_tuple(std::move(factory)),
+//                            std::make_tuple(std::move(composite_table))));
+//    } else if (params_.storage_hash_table == StorageHashTable::STLHashTable) {
+//      typedef core::STLHashTable<HashType> HashTable;
+//      std::unique_ptr<typename HashTable::Factory> factory(
+//          new typename HashTable::Factory());
 
-      typedef core::StaticCompositeHashTable<HashType, KeyType, HashTable>
-          CompositeTable;
-      std::unique_ptr<CompositeTable> composite_table(
-          new CompositeTable(params_.l, factory.get()));
-      setup4(std::tuple_cat(std::move(vals),
-                            std::make_tuple(std::move(factory)),
-                            std::make_tuple(std::move(composite_table))));
-    } else if (params_.storage_hash_table ==
-               StorageHashTable::LinearProbingHashTable) {
-      typedef core::StaticLinearProbingHashTable<HashType, KeyType> HashTable;
-      std::unique_ptr<typename HashTable::Factory> factory(
-          new typename HashTable::Factory(2 * n_));
+//      typedef core::DynamicCompositeHashTable<HashType, KeyType, HashTable>
+//          CompositeTable;
+//      std::unique_ptr<CompositeTable> composite_table(
+//          new CompositeTable(params_.l, factory.get()));
+//      setup4(std::tuple_cat(std::move(vals),
+//                            std::make_tuple(std::move(factory)),
+//                            std::make_tuple(std::move(composite_table))));
+//    } else if (params_.storage_hash_table ==
+//               StorageHashTable::LinearProbingHashTable) {
+//      typedef core::StaticLinearProbingHashTable<HashType, KeyType> HashTable;
+//      std::unique_ptr<typename HashTable::Factory> factory(
+//          new typename HashTable::Factory(2 * n_));
 
-      typedef core::StaticCompositeHashTable<HashType, KeyType, HashTable>
-          CompositeTable;
-      std::unique_ptr<CompositeTable> composite_table(
-          new CompositeTable(params_.l, factory.get()));
-      setup4(std::tuple_cat(std::move(vals),
-                            std::make_tuple(std::move(factory)),
-                            std::make_tuple(std::move(composite_table))));
-    } else {
+//      typedef core::DynamicCompositeHashTable<HashType, KeyType, HashTable>
+//          CompositeTable;
+//      std::unique_ptr<CompositeTable> composite_table(
+//          new CompositeTable(params_.l, factory.get()));
+//      setup4(std::tuple_cat(std::move(vals),
+//                            std::make_tuple(std::move(factory)),
+//                            std::make_tuple(std::move(composite_table))));
+//    }
+    else {
       throw LSHNNTableSetupError(
           "Unknown storage hash table type. Maybe you "
           "forgot to set the hash table type in the parameter struct?");
@@ -887,7 +899,7 @@ class StaticTableFactory {
   std::unique_ptr<DataStorageType> data_storage_;
   int_fast32_t num_bits_;
   int_fast64_t n_;
-  std::unique_ptr<LSHNearestNeighborTable<PointType, KeyType>> table_ = nullptr;
+  std::unique_ptr<LSHNearestNeighborTable<PointType, DataStorageType, KeyType>> table_ = nullptr;
 };
 
 }  // namespace wrapper
@@ -910,12 +922,22 @@ LSHConstructionParameters get_default_parameters(
       dataset_size, dimension, distance_function, is_sufficiently_dense);
 }
 
-template <typename PointType, typename KeyType, typename PointSet>
-std::unique_ptr<LSHNearestNeighborTable<PointType, KeyType>> construct_table(
+template <typename PointType, typename KeyType, typename PointSet, typename DataStorageType>
+std::unique_ptr<LSHNearestNeighborTable<PointType, DataStorageType, KeyType>> construct_table(
     const PointSet& points, const LSHConstructionParameters& params) {
-  wrapper::StaticTableFactory<PointType, KeyType, PointSet> factory(points,
-                                                                    params);
+  wrapper::StaticTableFactory<PointType, KeyType, PointSet> factory(points, params);
   return std::move(factory.setup());
+}
+
+//typedef typename DataStorageAdapter<PointSet>::template DataStorage<KeyType>
+//    DataStorageType;
+//using DataStorage = core::PlainArrayDataStorage<DenseVector<PointSet>, KeyType>;
+
+template <typename KeyType, typename PointSet, typename DataStorageType, typename DataStorage>
+std::unique_ptr<DataStorageType> convert_data(PointSet &points) {
+    std::unique_ptr<DataStorageType> data_storage = std::move(
+            wrapper::DataStorageAdapter<PointSet>::template construct_data_storage<KeyType>(points));
+    return data_storage;
 }
 
 }  // namespace falconn

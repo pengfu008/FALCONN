@@ -1,4 +1,4 @@
-#include <falconn/falconn_global.h>
+﻿#include <falconn/falconn_global.h>
 #include <falconn/lsh_nn_table.h>
 
 #include <pybind11/numpy.h>
@@ -252,6 +252,15 @@ class PyLSHNearestNeighborTableDenseFloat {
                                      num_query_objects);
     return std::unique_ptr<OuterLSHQueryPool>(
         new OuterLSHQueryPool(std::move(inner_query_pool)));
+  }
+
+  void insert(OuterNumPyArray points) {
+      InnerEigenMap converted_points = numpy_to_eigen(points);
+      table_->insert(converted_points);
+  }
+
+  void remove(int_fast64_t point_index) {
+      table_->remove(point_index);
   }
 
  private:
@@ -556,7 +565,13 @@ PYBIND11_MODULE(_falconn, m) {
       .def("construct_query_pool",
            &PyLSHNearestNeighborTableDenseFloat::construct_query_pool,
            py::arg("num_probes") = -1, py::arg("max_num_candidates") = -1,
-           py::arg("num_query_objects") = 0);
+           py::arg("num_query_objects") = 0)
+       .def("remove",
+           &PyLSHNearestNeighborTableDenseFloat::remove,
+           py::arg("point_index") = -1)
+       .def("insert",
+           &PyLSHNearestNeighborTableDenseFloat::insert,
+           py::arg("points") = -1);
   // we do not expose a constructor
   py::class_<PyLSHNearestNeighborTableDenseDouble>(
       m, "PyLSHNearestNeighborTableDenseDouble")

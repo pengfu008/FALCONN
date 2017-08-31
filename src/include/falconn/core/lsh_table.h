@@ -13,6 +13,7 @@
 
 #include "../falconn_global.h"
 #include "data_storage.h"
+#include "../lsh_nn_table.h"
 
 namespace falconn {
 namespace core {
@@ -249,18 +250,52 @@ class StaticLSHTable
     }
   };
 
- private:
-  int_fast64_t n_;
+//  typedef Eigen::Matrix<PointType, Eigen::Dynamic, 1, Eigen::ColMajor>
+//      TransformedVectorType;
 
-  void setup_table_range(int_fast32_t from, int_fast32_t to,
-                         const DataStorageType& points) {
-    typename LSH::template BatchHash<DataStorageType> bh(*(this->lsh_));
-    std::vector<HashType> table_hashes;
-    for (int_fast32_t ii = from; ii <= to; ++ii) {
-      bh.batch_hash_single_table(points, ii, &table_hashes);
-      this->hash_table_->add_entries_for_table(table_hashes, ii);
+  void insert(DataStorageType& points) {
+      typename LSH::template BatchHash<DataStorageType> bh(*(this->lsh_));
+      std::vector<HashType> table_hashes;
+
+//      TransformedVectorType tmp_vector_;
+
+//      PlainArrayPointSet<PointType> converted_points;
+//      converted_points.data = points;
+//      converted_points.num_points = 1;
+//      converted_points.dimension = 128;
+
+//      PlainArrayDataStorage<PointType, int_fast64_t> converted_points1(points);
+
+//      this->lsh_->get_multiplied_vector_single_table(point, this->lsh_->get_l(),
+//                                                       &tmp_vector_);
+//      table_hashes.at(0) = compute_hash_single_table(tmp_vector_);
+
+
+//      ArrayDataStorage<PointType, KeyType>
+      for (int_fast32_t ii = 0; ii < this->lsh_->get_l(); ++ii) {
+        bh.batch_hash_single_table(points, ii, &table_hashes);
+        this->hash_table_->insert(table_hashes.at(0), ii);
+      }
+  }
+
+  void remove(int_fast64_t point_index) {
+    for (int_fast32_t ii = 0; ii < this->lsh_->get_l(); ++ii) {
+        this->hash_table_->remove(point_index, ii);
     }
   }
+
+  private:
+      int_fast64_t n_;
+
+      void setup_table_range(int_fast32_t from, int_fast32_t to,
+                             const DataStorageType& points) {
+        typename LSH::template BatchHash<DataStorageType> bh(*(this->lsh_));
+        std::vector<HashType> table_hashes;
+        for (int_fast32_t ii = from; ii <= to; ++ii) {
+          bh.batch_hash_single_table(points, ii, &table_hashes);
+          this->hash_table_->add_entries_for_table(table_hashes, ii);
+        }
+      }
 };
 
 }  // namespace core

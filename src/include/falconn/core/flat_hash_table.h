@@ -79,6 +79,86 @@ class FlatHashTable {
     }
   }
 
+  void insert(IndexType key) {
+    indices_.push_back(key);
+    if (bucket_list_.at(key).first == 0) {
+        IndexType next_valid_bucket = 0;
+        for (int_fast32_t i = key + 1; i < bucket_list_.size(); i++) {
+            if (bucket_list_.at(i).first != 0) {
+                next_valid_bucket = bucket_list_.at(i).first;
+                break;
+            }
+        }
+        bucket_list_.at(key).first = next_valid_bucket;
+    }
+    bucket_list_.at(key).second += 1;
+
+    for (int_fast32_t i = key + 1; i < bucket_list_.size(); i++) {
+        if (bucket_list_.at(i).second > 0) {
+          bucket_list_.at(i).first += 1;
+        }
+    }
+  }
+
+  void remove(ValueType point_index) {
+       // 找出index在iindices的位置
+      int indices_index = indices_.at(point_index);
+      indices_.erase(indices_.begin() + indices_index);
+      for (int_fast32_t i = 0; i < bucket_list_.size();i++)
+      {
+          if (bucket_list_.at(i).second > 0) {
+              int current_bucket_count = bucket_list_.at(i).first + bucket_list_.at(i).second - 1;
+              if (indices_index <= current_bucket_count) {
+                  if (bucket_list_.at(i).second == 1) {
+                      bucket_list_.at(i).first = 0;
+                  }
+                  bucket_list_.at(i).second -= 1;
+                  for (int_fast32_t j = i + 1; j < bucket_list_.size(); j++) {
+                      if (bucket_list_.at(j).second > 0) {
+                        bucket_list_.at(j).first -= 1;
+                      }
+                  }
+                  break;
+              }
+          }
+      }
+  }
+
+  void add_entries_new(const std::vector<KeyType>& keys) {
+    if (num_buckets_ <= 0) {
+      throw FlatHashTableError("Non-positive number of buckets");
+    }
+    if (entries_added_) {
+      throw FlatHashTableError("Entries were already added.");
+    }
+    bucket_list_.resize(num_buckets_, std::make_pair(0, 0));
+
+    entries_added_ = true;
+
+    KeyComparator comp(keys);
+    indices_.resize(keys.size());
+    for (IndexType ii = 0; static_cast<size_t>(ii) < indices_.size(); ++ii) {
+      if (keys[ii] >= static_cast<KeyType>(num_buckets_) || keys[ii] < 0) {
+        throw FlatHashTableError("Key value out of range.");
+      }
+      indices_[ii] = ii;
+    }
+    std::sort(indices_.begin(), indices_.end(), comp);
+
+    IndexType cur_index = 0;
+    while (cur_index < static_cast<IndexType>(indices_.size())) {
+      IndexType end_index = cur_index;
+      do {
+        end_index += 1;
+      } while (end_index < static_cast<IndexType>(indices_.size()) &&
+               keys[indices_[cur_index]] == keys[indices_[end_index]]);
+
+      bucket_list_[keys[indices_[cur_index]]].first = cur_index;
+      bucket_list_[keys[indices_[cur_index]]].second = end_index - cur_index;
+      cur_index = end_index;
+    }
+  }
+
   std::pair<Iterator, Iterator> retrieve(const KeyType& key) {
     IndexType start = bucket_list_[key].first;
     IndexType len = bucket_list_[key].second;

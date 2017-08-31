@@ -367,3 +367,9 @@ class LSHIndex:
     def construct_query_pool(self, num_probes=-1, max_num_candidates=-1, num_query_objects=0):
         self._check_built()
         return Queriable(self._table.construct_query_pool(num_probes, max_num_candidates, num_query_objects), self)
+
+    def remove(self, point_index):
+        self._table.remove(point_index)
+
+    def insert(self, points):
+        self._table.insert(points)

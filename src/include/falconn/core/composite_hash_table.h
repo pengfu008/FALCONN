@@ -165,25 +165,22 @@ class DynamicCompositeHashTable
  public:
   DynamicCompositeHashTable(int_fast32_t l,
                             typename InnerHashTable::Factory* factory)
-      : BasicCompositeHashTable<KeyType, ValueType, InnerHashTable>(l,
-                                                                    factory) {}
+      : BasicCompositeHashTable<KeyType, ValueType, InnerHashTable>(l, factory) {}
+  void add_entries_for_table(const std::vector<KeyType>& keys,
+                             int_fast32_t table) {
+    if (table < 0 || table >= this->l_) {
+      throw CompositeHashTableError("Table index incorrect.");
+    }
 
-  void insert(const std::vector<KeyType>& keys, ValueType value) {
-    if (static_cast<int_fast32_t>(keys.size()) != this->l_) {
-      throw CompositeHashTableError("Number of keys in insert incorrect.");
-    }
-    for (int_fast32_t ii = 0; ii < this->l_; ++ii) {
-      (this->tables_[ii])->insert(keys[ii], value);
-    }
+    this->tables_[table]->add_entries(keys);
   }
 
-  void remove(const std::vector<KeyType>& keys, ValueType value) {
-    if (static_cast<int_fast32_t>(keys.size()) != this->l_) {
-      throw CompositeHashTableError("Number of hashes in remove incorrect.");
-    }
-    for (int_fast32_t ii = 0; ii < this->l_; ++ii) {
-      (this->tables_[ii])->remove(keys[ii], value);
-    }
+  void insert(KeyType key, int_fast32_t table) {
+    this->tables_[table]->insert(key);
+  }
+
+  void remove(ValueType point_index, int_fast32_t table) {
+      this->tables_[table]->remove(point_index);
   }
 };
 
