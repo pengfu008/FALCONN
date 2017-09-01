@@ -1,4 +1,5 @@
-﻿#include <falconn/falconn_global.h>
+﻿#include <iostream>
+#include <falconn/falconn_global.h>
 #include <falconn/lsh_nn_table.h>
 
 #include <pybind11/numpy.h>
@@ -47,6 +48,22 @@ PlainArrayPointSet<T> numpy_to_plain_dataset(NumPyArray<T> dataset) {
   converted_points.dimension = dimension;
   return converted_points;
 }
+
+//template <typename T>
+//std::vector<T> numpy_to_vector(NumPyArray<T> x) {
+//  py::buffer_info buf = x.request();
+//  if (buf.ndim != 1) {
+//    throw PyLSHNearestNeighborTableError("expected a one-dimensional array");
+//  }
+//
+//  std::vector<T> data;
+//  for (int32_t i = 0; i < buf.shape[0]; i++) {
+//    std::cout << buf.ptr << std::endl;
+//    data.push_back((T *)buf.ptr[i]);
+//  }
+//
+//  return data;
+//}
 
 template <typename T>
 using LSHTable = LSHNearestNeighborTable<DenseVector<T>>;
@@ -256,6 +273,7 @@ class PyLSHNearestNeighborTableDenseFloat {
 
   void insert(OuterNumPyArray points) {
       InnerEigenMap converted_points = numpy_to_eigen(points);
+//      InnerPlainArrayPointSet converted_points = numpy_to_plain_dataset(points);
       table_->insert(converted_points);
   }
 

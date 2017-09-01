@@ -61,7 +61,7 @@ template <typename PointType,  // the type of the data points to be stored
           typename LSH,        // the LSH family
           typename HashType,   // type returned by a set of k LSH functions
           typename HashTable,  // the low-level hash tables
-          typename DataStorageType = ArrayDataStorage<PointType, KeyType>>
+          typename DataStorageType = PlainArrayDataStorage<PointType, KeyType>>
 class StaticLSHTable
     : public BasicLSHTable<LSH, HashTable,
                            StaticLSHTable<PointType, KeyType, LSH, HashType,
@@ -253,22 +253,22 @@ class StaticLSHTable
 //  typedef Eigen::Matrix<PointType, Eigen::Dynamic, 1, Eigen::ColMajor>
 //      TransformedVectorType;
 
-  void insert(DataStorageType& points) {
+  void insert(const DataStorageType& points) {
       typename LSH::template BatchHash<DataStorageType> bh(*(this->lsh_));
       std::vector<HashType> table_hashes;
 
+//      typedef Eigen::Matrix<PointType, Eigen::Dynamic, 1, Eigen::ColMajor>
+//          TransformedVectorType;
+
 //      TransformedVectorType tmp_vector_;
-
-//      PlainArrayPointSet<PointType> converted_points;
-//      converted_points.data = points;
-//      converted_points.num_points = 1;
-//      converted_points.dimension = 128;
-
-//      PlainArrayDataStorage<PointType, int_fast64_t> converted_points1(points);
+//      using DataStorage = falconn::core::PlainArrayDataStorage<DenseVector<float>, KeyType>;
+//      const std::unique_ptr<DataStorage> res(std::move(new DataStorage(point.data(), point.rows(), point.cols())));
+//      std::unique_ptr<DataStorage> res(new DataStorage(point.data, points.num_points, points.dimension));
+//      PlainArrayDataStorage<PointType, int_fast64_t> converted_points1(point, 1, 128);
 
 //      this->lsh_->get_multiplied_vector_single_table(point, this->lsh_->get_l(),
 //                                                       &tmp_vector_);
-//      table_hashes.at(0) = compute_hash_single_table(tmp_vector_);
+//      table_hashes = BatchHash<DataStorageType>::compute_hash_single_table(tmp_vector_);
 
 
 //      ArrayDataStorage<PointType, KeyType>

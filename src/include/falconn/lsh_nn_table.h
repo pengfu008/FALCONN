@@ -203,7 +203,7 @@ class LSHNearestNeighborQueryPool {
 /// The KeyType template parameter is optional and the default int32_t is
 /// sufficient for up to 10^9 points.
 ///
-template <typename PointType, typename DataStorageType, typename KeyType = int32_t>
+template <typename PointType, typename KeyType = int32_t>
 class LSHNearestNeighborTable {
  public:
   ///
@@ -251,7 +251,7 @@ class LSHNearestNeighborTable {
                        int_fast64_t num_query_objects = 0) const = 0;
 
   // pf add
-  virtual void insert(DataStorageType& points) = 0;
+  virtual void insert(const PointType& points) = 0;
   virtual void remove(int_fast64_t point_index) = 0;
 
   ///

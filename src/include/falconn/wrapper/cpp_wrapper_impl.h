@@ -555,7 +555,7 @@ template <typename PointType, typename KeyType, typename DistanceType,
           typename DistanceFunction, typename LSHTable, typename LSHFunction,
           typename HashTableFactory, typename CompositeHashTable,
           typename DataStorage>
-class LSHNNTableWrapper : public LSHNearestNeighborTable<PointType, DataStorage, KeyType> {
+class LSHNNTableWrapper : public LSHNearestNeighborTable<PointType, KeyType> {
  public:
   LSHNNTableWrapper(std::unique_ptr<LSHFunction> lsh,
                     std::unique_ptr<LSHTable> lsh_table,
@@ -607,8 +607,13 @@ class LSHNNTableWrapper : public LSHNearestNeighborTable<PointType, DataStorage,
   }
 
   // pf add PlainArrayPointSet<PointType>&
-  void insert(DataStorage& points) {
-      lsh_table_->insert(points);
+  void insert(const PointType& points) {
+//      using DataStorage = falconn::core::PlainArrayDataStorage<DenseVector<float>, KeyType>;
+      const std::unique_ptr<DataStorage> data_storage(std::move(new DataStorage(points.data(), points.rows(), points.cols())));
+//      std::unique_ptr<DataStorage> data_storage = std::move(
+//          DataStorageAdapter<PointType>::template construct_data_storage<KeyType>(points));
+
+      lsh_table_->insert(*data_storage);
   }
 
   void remove(int_fast64_t point_index) {
@@ -637,7 +642,7 @@ class StaticTableFactory {
                      const LSHConstructionParameters& params)
       : points_(points), params_(params) {}
 
-  std::unique_ptr<LSHNearestNeighborTable<PointType, DataStorageType, KeyType>> setup() {
+  std::unique_ptr<LSHNearestNeighborTable<PointType, KeyType>> setup() {
     if (params_.dimension < 1) {
       throw LSHNNTableSetupError(
           "Point dimension must be at least 1. Maybe "
@@ -899,7 +904,7 @@ class StaticTableFactory {
   std::unique_ptr<DataStorageType> data_storage_;
   int_fast32_t num_bits_;
   int_fast64_t n_;
-  std::unique_ptr<LSHNearestNeighborTable<PointType, DataStorageType, KeyType>> table_ = nullptr;
+  std::unique_ptr<LSHNearestNeighborTable<PointType, KeyType>> table_ = nullptr;
 };
 
 }  // namespace wrapper
@@ -922,8 +927,8 @@ LSHConstructionParameters get_default_parameters(
       dataset_size, dimension, distance_function, is_sufficiently_dense);
 }
 
-template <typename PointType, typename KeyType, typename PointSet, typename DataStorageType>
-std::unique_ptr<LSHNearestNeighborTable<PointType, DataStorageType, KeyType>> construct_table(
+template <typename PointType, typename KeyType, typename PointSet>
+std::unique_ptr<LSHNearestNeighborTable<PointType, KeyType>> construct_table(
     const PointSet& points, const LSHConstructionParameters& params) {
   wrapper::StaticTableFactory<PointType, KeyType, PointSet> factory(points, params);
   return std::move(factory.setup());
@@ -933,12 +938,12 @@ std::unique_ptr<LSHNearestNeighborTable<PointType, DataStorageType, KeyType>> co
 //    DataStorageType;
 //using DataStorage = core::PlainArrayDataStorage<DenseVector<PointSet>, KeyType>;
 
-template <typename KeyType, typename PointSet, typename DataStorageType, typename DataStorage>
-std::unique_ptr<DataStorageType> convert_data(PointSet &points) {
-    std::unique_ptr<DataStorageType> data_storage = std::move(
-            wrapper::DataStorageAdapter<PointSet>::template construct_data_storage<KeyType>(points));
-    return data_storage;
-}
+//template <typename KeyType, typename PointSet, typename DataStorageType, typename DataStorage>
+//std::unique_ptr<DataStorageType> convert_data(PointSet &points) {
+//    std::unique_ptr<DataStorageType> data_storage = std::move(
+//            wrapper::DataStorageAdapter<PointSet>::template construct_data_storage<KeyType>(points));
+//    return data_storage;
+//}
 
 }  // namespace falconn
 
