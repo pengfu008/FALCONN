@@ -22,47 +22,41 @@ namespace py = pybind11;
 
 template <typename T>
 using NumPyArray = py::array_t<T, py::array::c_style>;
-template <typename T>
-using EigenMap = Eigen::Map<DenseVector<T>>;
-
-template <typename T>
-inline EigenMap<T> numpy_to_eigen(NumPyArray<T> x) {
-  py::buffer_info buf = x.request();
-  if (buf.ndim != 1) {
-    throw PyLSHNearestNeighborTableError("expected a one-dimensional array");
-  }
-  return EigenMap<T>((T *)buf.ptr, buf.shape[0]);
-}
-
-template <typename T>
-PlainArrayPointSet<T> numpy_to_plain_dataset(NumPyArray<T> dataset) {
-  py::buffer_info buf = dataset.request();
-  if (buf.ndim != 2) {
-    throw PyLSHNearestNeighborTableError("expected a two-dimensional array");
-  }
-  size_t num_points = buf.shape[0];
-  size_t dimension = buf.shape[1];
-  PlainArrayPointSet<T> converted_points;
-  converted_points.data = (T *)buf.ptr;
-  converted_points.num_points = num_points;
-  converted_points.dimension = dimension;
-  return converted_points;
-}
+//template <typename T>
+//using EigenMap = Eigen::Map<DenseVector<T>>;
 
 //template <typename T>
-//std::vector<T> numpy_to_vector(NumPyArray<T> x) {
+//using Vec = DenseVector<T>;
+//template <typename T>
+//using PointSet = std::vector<Vec>;
+
+//template <typename T>
+//inline EigenMap<T> numpy_to_eigen(NumPyArray<T> x) {
 //  py::buffer_info buf = x.request();
 //  if (buf.ndim != 1) {
 //    throw PyLSHNearestNeighborTableError("expected a one-dimensional array");
 //  }
-//
-//  std::vector<T> data;
-//  for (int32_t i = 0; i < buf.shape[0]; i++) {
-//    std::cout << buf.ptr << std::endl;
-//    data.push_back((T *)buf.ptr[i]);
+//  return EigenMap<T>((T *)buf.ptr, buf.shape[0]);
+//}
+
+//<template T>
+//PointSet<T> numpy_to_array_dataset(NumPyArray<T> dataset) {
+//  py::buffer_info buf = dataset.request();
+//  if (buf.ndim != 2) {
+//    throw PyLSHNearestNeighborTableError("expected a two-dimensional array");
 //  }
+//  size_t num_points = buf.shape[0];
+//  size_t dimension = buf.shape[1];
 //
-//  return data;
+//  PointSet<T> converted_points;
+//  for (int_fast32_t i = 0; i < num_points; i++) {
+//      Vec v(dimension);
+//      for (int_fast32_t j = 0; j < dimension; j++) {
+//         v[j] = ((T *)buf.ptr)[i*dimension + j];
+//      }
+//      converted_points.push_back(v);
+//  }
+//  return converted_points;
 //}
 
 template <typename T>
@@ -76,13 +70,60 @@ namespace single_precision {
 
 typedef float ScalarType;
 typedef DenseVector<ScalarType> InnerVector;
-typedef EigenMap<ScalarType> InnerEigenMap;
-typedef PlainArrayPointSet<ScalarType> InnerPlainArrayPointSet;
 typedef LSHTable<ScalarType> InnerLSHTable;
 typedef LSHQueryObject<ScalarType> InnerLSHQueryObject;
 typedef LSHQueryPool<ScalarType> InnerLSHQueryPool;
 
 typedef NumPyArray<ScalarType> OuterNumPyArray;
+
+
+typedef std::vector<InnerVector> InnerPointSet;
+inline InnerPointSet numpy_to_array_dataset(OuterNumPyArray dataset) {
+  py::buffer_info buf = dataset.request();
+  if (buf.ndim != 2) {
+    throw PyLSHNearestNeighborTableError("expected a two-dimensional array");
+  }
+  size_t num_points = buf.shape[0];
+  size_t dimension = buf.shape[1];
+
+  InnerPointSet converted_points;
+  for (int_fast32_t i = 0; i < num_points; i++) {
+      InnerVector v(dimension);
+      for (int_fast32_t j = 0; j < dimension; j++) {
+         v[j] = ((ScalarType *)buf.ptr)[i*dimension + j];
+      }
+      converted_points.push_back(v);
+  }
+
+//  free((ScalarType *)buf.ptr);
+
+  return converted_points;
+}
+
+inline InnerVector numpy_to_array_point(OuterNumPyArray point) {
+  std::cout << '1' << std::endl;
+  py::buffer_info buf = point.request();
+  if (buf.ndim != 1) {
+    throw PyLSHNearestNeighborTableError("expected a two-dimensional array");
+  }
+
+  InnerVector converted_point(buf.shape[0]);
+  for (int_fast32_t i = 0; i < buf.shape[0]; i++) {
+     converted_point[i] = ((ScalarType *)buf.ptr)[i];
+  }
+  std::cout << buf.shape[0] << std::endl;
+
+  return converted_point;
+}
+
+//inline EigenMap<T> numpy_to_eigen(NumPyArray<T> x) {
+//  py::buffer_info buf = x.request();
+//  if (buf.ndim != 1) {
+//    throw PyLSHNearestNeighborTableError("expected a one-dimensional array");
+//  }
+//  return EigenMap<T>((T *)buf.ptr, buf.shape[0]);
+//}
+
 
 class PyLSHNearestNeighborQueryDenseFloat {
  public:
@@ -111,14 +152,16 @@ class PyLSHNearestNeighborQueryDenseFloat {
   }
 
   int32_t find_nearest_neighbor(OuterNumPyArray q) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     return inner_entity_->find_nearest_neighbor(converted_query);
   }
 
   std::vector<int32_t> find_k_nearest_neighbors(OuterNumPyArray q,
                                                 int_fast64_t k) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
+    std::cout << '3' << std::endl;
+
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->find_k_nearest_neighbors(converted_query, k, &result);
@@ -127,7 +170,7 @@ class PyLSHNearestNeighborQueryDenseFloat {
 
   std::vector<int32_t> find_near_neighbors(OuterNumPyArray q,
                                            ScalarType threshold) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->find_near_neighbors(converted_query, threshold, &result);
@@ -135,7 +178,7 @@ class PyLSHNearestNeighborQueryDenseFloat {
   }
 
   std::vector<int32_t> get_unique_candidates(OuterNumPyArray q) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->get_unique_candidates(converted_query, &result);
@@ -143,7 +186,7 @@ class PyLSHNearestNeighborQueryDenseFloat {
   }
 
   std::vector<int32_t> get_candidates_with_duplicates(OuterNumPyArray q) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->get_candidates_with_duplicates(converted_query, &result);
@@ -191,14 +234,14 @@ class PyLSHNearestNeighborQueryPoolDenseFloat {
   }
 
   int32_t find_nearest_neighbor(OuterNumPyArray q) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     return inner_entity_->find_nearest_neighbor(converted_query);
   }
 
   std::vector<int32_t> find_k_nearest_neighbors(OuterNumPyArray q,
                                                 int_fast64_t k) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->find_k_nearest_neighbors(converted_query, k, &result);
@@ -207,7 +250,7 @@ class PyLSHNearestNeighborQueryPoolDenseFloat {
 
   std::vector<int32_t> find_near_neighbors(OuterNumPyArray q,
                                            ScalarType threshold) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->find_near_neighbors(converted_query, threshold, &result);
@@ -215,7 +258,7 @@ class PyLSHNearestNeighborQueryPoolDenseFloat {
   }
 
   std::vector<int32_t> get_unique_candidates(OuterNumPyArray q) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->get_unique_candidates(converted_query, &result);
@@ -223,7 +266,7 @@ class PyLSHNearestNeighborQueryPoolDenseFloat {
   }
 
   std::vector<int32_t> get_candidates_with_duplicates(OuterNumPyArray q) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->get_candidates_with_duplicates(converted_query, &result);
@@ -272,8 +315,7 @@ class PyLSHNearestNeighborTableDenseFloat {
   }
 
   void insert(OuterNumPyArray points) {
-      InnerEigenMap converted_points = numpy_to_eigen(points);
-//      InnerPlainArrayPointSet converted_points = numpy_to_plain_dataset(points);
+      InnerPointSet converted_points = numpy_to_array_dataset(points);
       table_->insert(converted_points);
   }
 
@@ -286,13 +328,14 @@ class PyLSHNearestNeighborTableDenseFloat {
 };
 
 typedef PyLSHNearestNeighborTableDenseFloat OuterLSHTable;
+InnerPointSet converted_setup_points;
 
 std::unique_ptr<OuterLSHTable> construct_table_dense_float(
     OuterNumPyArray points, const LSHConstructionParameters &params) {
-  InnerPlainArrayPointSet converted_points = numpy_to_plain_dataset(points);
+  converted_setup_points = numpy_to_array_dataset(points);
   std::unique_ptr<InnerLSHTable> inner_table =
-      construct_table<InnerVector, int32_t, InnerPlainArrayPointSet>(
-          converted_points, params);
+      construct_table<InnerVector, int32_t, InnerPointSet>(
+          converted_setup_points, params);
   return std::unique_ptr<OuterLSHTable>(
       new OuterLSHTable(std::move(inner_table)));
 }
@@ -303,13 +346,45 @@ namespace double_precision {
 
 typedef double ScalarType;
 typedef DenseVector<ScalarType> InnerVector;
-typedef EigenMap<ScalarType> InnerEigenMap;
-typedef PlainArrayPointSet<ScalarType> InnerPlainArrayPointSet;
+//typedef EigenMap<ScalarType> InnerEigenMap;
+//typedef PlainArrayPointSet<ScalarType> InnerPlainArrayPointSet;
 typedef LSHTable<ScalarType> InnerLSHTable;
 typedef LSHQueryObject<ScalarType> InnerLSHQueryObject;
 typedef LSHQueryPool<ScalarType> InnerLSHQueryPool;
-
 typedef NumPyArray<ScalarType> OuterNumPyArray;
+
+typedef std::vector<InnerVector> InnerPointSet;
+inline InnerPointSet numpy_to_array_dataset(NumPyArray<ScalarType> dataset) {
+  py::buffer_info buf = dataset.request();
+  if (buf.ndim != 2) {
+    throw PyLSHNearestNeighborTableError("expected a two-dimensional array");
+  }
+  size_t num_points = buf.shape[0];
+  size_t dimension = buf.shape[1];
+
+  InnerPointSet converted_points;
+  for (int_fast32_t i = 0; i < num_points; i++) {
+      InnerVector v(dimension);
+      for (int_fast32_t j = 0; j < dimension; j++) {
+         v[j] = ((ScalarType *)buf.ptr)[i*dimension + j];
+      }
+      converted_points.push_back(v);
+  }
+  return converted_points;
+}
+
+inline InnerVector numpy_to_array_point(NumPyArray<ScalarType> point) {
+  py::buffer_info buf = point.request();
+  if (buf.ndim != 1) {
+    throw PyLSHNearestNeighborTableError("expected a two-dimensional array");
+  }
+
+  InnerVector converted_point(buf.shape[0]);
+  for (int_fast32_t i = 0; i < buf.shape[0]; i++) {
+     converted_point[i] = ((ScalarType *)buf.ptr)[i];
+  }
+  return converted_point;
+}
 
 class PyLSHNearestNeighborQueryDenseDouble {
  public:
@@ -338,14 +413,14 @@ class PyLSHNearestNeighborQueryDenseDouble {
   }
 
   int32_t find_nearest_neighbor(OuterNumPyArray q) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     return inner_entity_->find_nearest_neighbor(converted_query);
   }
 
   std::vector<int32_t> find_k_nearest_neighbors(OuterNumPyArray q,
                                                 int_fast64_t k) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->find_k_nearest_neighbors(converted_query, k, &result);
@@ -354,7 +429,7 @@ class PyLSHNearestNeighborQueryDenseDouble {
 
   std::vector<int32_t> find_near_neighbors(OuterNumPyArray q,
                                            ScalarType threshold) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->find_near_neighbors(converted_query, threshold, &result);
@@ -362,7 +437,7 @@ class PyLSHNearestNeighborQueryDenseDouble {
   }
 
   std::vector<int32_t> get_unique_candidates(OuterNumPyArray q) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->get_unique_candidates(converted_query, &result);
@@ -370,7 +445,7 @@ class PyLSHNearestNeighborQueryDenseDouble {
   }
 
   std::vector<int32_t> get_candidates_with_duplicates(OuterNumPyArray q) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->get_candidates_with_duplicates(converted_query, &result);
@@ -418,14 +493,14 @@ class PyLSHNearestNeighborQueryPoolDenseDouble {
   }
 
   int32_t find_nearest_neighbor(OuterNumPyArray q) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     return inner_entity_->find_nearest_neighbor(converted_query);
   }
 
   std::vector<int32_t> find_k_nearest_neighbors(OuterNumPyArray q,
                                                 int_fast64_t k) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->find_k_nearest_neighbors(converted_query, k, &result);
@@ -434,7 +509,7 @@ class PyLSHNearestNeighborQueryPoolDenseDouble {
 
   std::vector<int32_t> find_near_neighbors(OuterNumPyArray q,
                                            ScalarType threshold) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->find_near_neighbors(converted_query, threshold, &result);
@@ -442,7 +517,7 @@ class PyLSHNearestNeighborQueryPoolDenseDouble {
   }
 
   std::vector<int32_t> get_unique_candidates(OuterNumPyArray q) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->get_unique_candidates(converted_query, &result);
@@ -450,7 +525,7 @@ class PyLSHNearestNeighborQueryPoolDenseDouble {
   }
 
   std::vector<int32_t> get_candidates_with_duplicates(OuterNumPyArray q) {
-    InnerEigenMap converted_query = numpy_to_eigen(q);
+    InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
     std::vector<int32_t> result;
     inner_entity_->get_candidates_with_duplicates(converted_query, &result);
@@ -506,9 +581,9 @@ typedef PyLSHNearestNeighborTableDenseDouble OuterLSHTable;
 
 std::unique_ptr<OuterLSHTable> construct_table_dense_double(
     OuterNumPyArray points, const LSHConstructionParameters &params) {
-  InnerPlainArrayPointSet converted_points = numpy_to_plain_dataset(points);
+  InnerPointSet converted_points = numpy_to_array_dataset(points);
   std::unique_ptr<InnerLSHTable> inner_table =
-      construct_table<InnerVector, int32_t, InnerPlainArrayPointSet>(
+      construct_table<InnerVector, int32_t, InnerPointSet>(
           converted_points, params);
   return std::unique_ptr<OuterLSHTable>(
       new OuterLSHTable(std::move(inner_table)));
