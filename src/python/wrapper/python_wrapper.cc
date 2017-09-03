@@ -87,15 +87,16 @@ inline InnerPointSet numpy_to_array_dataset(OuterNumPyArray dataset) {
   size_t dimension = buf.shape[1];
 
   InnerPointSet converted_points;
-  for (int_fast32_t i = 0; i < num_points; i++) {
+  for (size_t i = 0; i < num_points; i++) {
       InnerVector v(dimension);
-      for (int_fast32_t j = 0; j < dimension; j++) {
+      for (size_t j = 0; j < dimension; j++) {
          v[j] = ((ScalarType *)buf.ptr)[i*dimension + j];
       }
       converted_points.push_back(v);
   }
 
 //  free((ScalarType *)buf.ptr);
+  buf.ptr = NULL;
 
   return converted_points;
 }
@@ -314,8 +315,8 @@ class PyLSHNearestNeighborTableDenseFloat {
         new OuterLSHQueryPool(std::move(inner_query_pool)));
   }
 
-  void insert(OuterNumPyArray points) {
-      InnerPointSet converted_points = numpy_to_array_dataset(points);
+  void insert(OuterNumPyArray point) {
+      InnerVector converted_points = numpy_to_array_point(point);
       table_->insert(converted_points);
   }
 
@@ -363,9 +364,9 @@ inline InnerPointSet numpy_to_array_dataset(NumPyArray<ScalarType> dataset) {
   size_t dimension = buf.shape[1];
 
   InnerPointSet converted_points;
-  for (int_fast32_t i = 0; i < num_points; i++) {
+  for (size_t i = 0; i < num_points; i++) {
       InnerVector v(dimension);
-      for (int_fast32_t j = 0; j < dimension; j++) {
+      for (size_t j = 0; j < dimension; j++) {
          v[j] = ((ScalarType *)buf.ptr)[i*dimension + j];
       }
       converted_points.push_back(v);
