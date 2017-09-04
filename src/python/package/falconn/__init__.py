@@ -371,5 +371,5 @@ class LSHIndex:
     def remove(self, point_index):
         self._table.remove(point_index)
 
-    def insert(self, points):
-        self._table.insert(points)
+    def insert(self, point):
+        self._table.insert(point)

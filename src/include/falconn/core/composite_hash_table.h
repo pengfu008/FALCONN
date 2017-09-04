@@ -175,8 +175,8 @@ class DynamicCompositeHashTable
     this->tables_[table]->add_entries(keys);
   }
 
-  void insert(KeyType key, int_fast32_t table) {
-    this->tables_[table]->insert(key);
+  void insert(KeyType key, int_fast32_t table, int_fast32_t dataset_size) {
+    this->tables_[table]->insert(key, dataset_size);
   }
 
   void remove(ValueType point_index, int_fast32_t table) {

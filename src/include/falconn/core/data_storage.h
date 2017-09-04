@@ -5,11 +5,15 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include <fstream>
+#include <stdio.h>
 
 #include "../falconn_global.h"
 #include "prefetchers.h"
 
 // TODO: add tests
+
+using namespace std;
 
 namespace falconn {
 namespace core {
@@ -155,7 +159,8 @@ class ArrayDataStorage {
     StdVectorPrefetcher<PointType> prefetcher_;
   };
 
-  ArrayDataStorage(const std::vector<PointType>& data) : data_(data) {}
+  ArrayDataStorage(std::vector<PointType>& data) : data_(data) {
+  }
 
   /*std::pair<Iterator, Iterator> get_sequence(const std::vector<KeyType>& keys)
       const {
@@ -167,6 +172,21 @@ class ArrayDataStorage {
 
   int_fast64_t size() const { return data_.size(); }
 
+  void insert(PointType& point) {
+    data_.push_back(point);
+//      std::vector<PointType> data_1;
+//      data_1.push_back(point);
+  }
+
+  void remove(int index) {
+      // 可以去掉
+      for (uint_fast32_t i = 0; i < data_.at(index).rows(); i++) {
+          data_.at(index)[i] = -10;
+      }
+
+//      data_.erase(data_.begin() + index);
+  }
+
   SubsequenceIterator get_subsequence(const std::vector<KeyType>& keys) const {
     return SubsequenceIterator(keys, *this);
   }
@@ -176,7 +196,7 @@ class ArrayDataStorage {
   }
 
  private:
-  const std::vector<PointType>& data_;
+  std::vector<PointType>& data_;
 };
 
 template <typename PointType, typename KeyType = int32_t>

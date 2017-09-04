@@ -10,6 +10,8 @@
 
 #include "hash_table_helpers.h"
 
+using namespace std;
+
 namespace falconn {
 namespace core {
 
@@ -73,55 +75,110 @@ class FlatHashTable {
       } while (end_index < static_cast<IndexType>(indices_.size()) &&
                keys[indices_[cur_index]] == keys[indices_[end_index]]);
 
+      // 在每个bucket预留一些位置，为insert数据节省时间
+//      IndexType valid_end_index = end_index;
+//      for (int_fast8_t j = 0; j < reserved_pos_; j++) {
+//        indices_.insert(indices_.begin() + end_index, -1);
+//        end_index++;
+//      }
+
       bucket_list_[keys[indices_[cur_index]]].first = cur_index;
-      bucket_list_[keys[indices_[cur_index]]].second = end_index - cur_index;
+      bucket_list_[keys[indices_[cur_index]]].second = end_index - cur_index;  //valid_end_index
       cur_index = end_index;
     }
   }
 
-  void insert(IndexType key) {
-    indices_.push_back(key);
-    if (bucket_list_.at(key).first == 0) {
-        IndexType next_valid_bucket = 0;
-        for (int_fast32_t i = key + 1; i < bucket_list_.size(); i++) {
+  void insert(IndexType key, int_fast64_t dataset_size) {
+    // 如果该bucket中没有数据
+    size_t index = -1;
+    if (bucket_list_.at(key).second == 0) {
+        IndexType valid_bucket_first = -1;
+        // 向后查找
+        for (uint_fast32_t i = key + 1; i < bucket_list_.size(); i++) {
             if (bucket_list_.at(i).first != 0) {
-                next_valid_bucket = bucket_list_.at(i).first;
+                valid_bucket_first = bucket_list_.at(i).first;
                 break;
             }
         }
-        bucket_list_.at(key).first = next_valid_bucket;
-    }
-    bucket_list_.at(key).second += 1;
 
-    for (int_fast32_t i = key + 1; i < bucket_list_.size(); i++) {
-        if (bucket_list_.at(i).second > 0) {
-          bucket_list_.at(i).first += 1;
+        // 如果后面的bucket全部没有数据，向前查找
+        if (valid_bucket_first == -1) {
+            for (int_fast32_t i = key - 1; i < 0; i--) {
+                if (bucket_list_.at(i).first != 0) {
+                    valid_bucket_first = indices_.size();
+//                            bucket_list_.at(i).first + bucket_list_.at(i).second;                    break;
+                }
+            }
+        }
+
+        bucket_list_.at(key).first = valid_bucket_first;
+        index = valid_bucket_first;
+    } else {
+        index = bucket_list_.at(key).first + bucket_list_.at(key).second;
+    }
+
+    // 存在预留位置
+    if (index < indices_.size() && indices_.at(index) == -1) {
+        indices_.at(index) = dataset_size;
+    } else {
+        indices_.insert(indices_.begin() + index, dataset_size);
+        for (int_fast8_t i = 0; i < reserved_pos_; i++) {
+            indices_.insert(indices_.begin() + index + i + 1, -1);
+        }
+
+        for (uint_fast32_t i = key + 1; i < bucket_list_.size(); i++) {
+            if (bucket_list_.at(i).second > 0) {
+              bucket_list_.at(i).first += 1 + reserved_pos_;
+            }
         }
     }
+
+    bucket_list_.at(key).second += 1;
   }
 
   void remove(ValueType point_index) {
-       // 找出index在iindices的位置
-      int indices_index = indices_.at(point_index);
-      indices_.erase(indices_.begin() + indices_index);
-      for (int_fast32_t i = 0; i < bucket_list_.size();i++)
+       // 找出index在indices的位置
+//      int indices_index = indices_.at(point_index);
+      int indices_index = std::find(indices_.begin(), indices_.end(), point_index) - indices_.begin();
+
+//      indices_.erase(indices_.begin() + indices_index);
+      uint_fast32_t bucket_index = 0;
+      for (; bucket_index < bucket_list_.size(); bucket_index++)
       {
-          if (bucket_list_.at(i).second > 0) {
-              int current_bucket_count = bucket_list_.at(i).first + bucket_list_.at(i).second - 1;
-              if (indices_index <= current_bucket_count) {
-                  if (bucket_list_.at(i).second == 1) {
-                      bucket_list_.at(i).first = 0;
-                  }
-                  bucket_list_.at(i).second -= 1;
-                  for (int_fast32_t j = i + 1; j < bucket_list_.size(); j++) {
-                      if (bucket_list_.at(j).second > 0) {
-                        bucket_list_.at(j).first -= 1;
-                      }
-                  }
-                  break;
-              }
+          // 找出要删除的index在哪个bucket_list中
+          if (indices_index < bucket_list_.at(bucket_index).first) {
+              bucket_index -= 1;
+              break;
           }
       }
+
+      KeyType next_bucket_first = 0;
+      for (KeyType i = bucket_index + 1; i < bucket_list_.size(); i++) {
+          if (bucket_list_.at(i).first != 0) {
+              next_bucket_first = bucket_list_.at(i).first;
+              break;
+          }
+      }
+      if (next_bucket_first == 0) {
+          next_bucket_first = indices_.size();
+      }
+
+      // 该bucket中后面的值往前挪
+      for (KeyType i = indices_index; i < next_bucket_first; i++) {
+          indices_.at(i) = indices_.at(i+1);
+      }
+      indices_.at(next_bucket_first-1) = -1;
+
+      bucket_list_.at(bucket_index).second -= 1;
+      if (bucket_list_.at(bucket_index).second == 0) {
+          bucket_list_.at(bucket_index).first = 0;
+      }
+
+//      for (uint_fast32_t i = bucket_index + 1; i < bucket_list_.size(); i++) {
+//          if (bucket_list_.at(i).second > 0) {
+//                bucket_list_.at(i).first -= 1;
+//          }
+//      }
   }
 
   void add_entries_new(const std::vector<KeyType>& keys) {
@@ -169,6 +226,7 @@ class FlatHashTable {
 
  private:
   IndexType num_buckets_ = -1;
+  int_fast8_t reserved_pos_ = 3;
   bool entries_added_ = false;
   // the pair contains start index and length
   std::vector<std::pair<IndexType, IndexType>> bucket_list_;

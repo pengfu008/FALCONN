@@ -96,13 +96,12 @@ inline InnerPointSet numpy_to_array_dataset(OuterNumPyArray dataset) {
   }
 
 //  free((ScalarType *)buf.ptr);
-  buf.ptr = NULL;
+//  buf.ptr = NULL;
 
   return converted_points;
 }
 
 inline InnerVector numpy_to_array_point(OuterNumPyArray point) {
-  std::cout << '1' << std::endl;
   py::buffer_info buf = point.request();
   if (buf.ndim != 1) {
     throw PyLSHNearestNeighborTableError("expected a two-dimensional array");
@@ -112,7 +111,6 @@ inline InnerVector numpy_to_array_point(OuterNumPyArray point) {
   for (int_fast32_t i = 0; i < buf.shape[0]; i++) {
      converted_point[i] = ((ScalarType *)buf.ptr)[i];
   }
-  std::cout << buf.shape[0] << std::endl;
 
   return converted_point;
 }
@@ -316,8 +314,8 @@ class PyLSHNearestNeighborTableDenseFloat {
   }
 
   void insert(OuterNumPyArray point) {
-      InnerVector converted_points = numpy_to_array_point(point);
-      table_->insert(converted_points);
+      InnerVector converted_point = numpy_to_array_point(point);
+      table_->insert(converted_point);
   }
 
   void remove(int_fast64_t point_index) {
@@ -355,7 +353,7 @@ typedef LSHQueryPool<ScalarType> InnerLSHQueryPool;
 typedef NumPyArray<ScalarType> OuterNumPyArray;
 
 typedef std::vector<InnerVector> InnerPointSet;
-inline InnerPointSet numpy_to_array_dataset(NumPyArray<ScalarType> dataset) {
+inline InnerPointSet numpy_to_array_dataset(OuterNumPyArray dataset) {
   py::buffer_info buf = dataset.request();
   if (buf.ndim != 2) {
     throw PyLSHNearestNeighborTableError("expected a two-dimensional array");
@@ -371,19 +369,24 @@ inline InnerPointSet numpy_to_array_dataset(NumPyArray<ScalarType> dataset) {
       }
       converted_points.push_back(v);
   }
+
+//  free((ScalarType *)buf.ptr);
+//  buf.ptr = NULL;
+
   return converted_points;
 }
 
-inline InnerVector numpy_to_array_point(NumPyArray<ScalarType> point) {
+inline InnerVector numpy_to_array_point(OuterNumPyArray point) {
   py::buffer_info buf = point.request();
   if (buf.ndim != 1) {
     throw PyLSHNearestNeighborTableError("expected a two-dimensional array");
   }
 
   InnerVector converted_point(buf.shape[0]);
-  for (int_fast32_t i = 0; i < buf.shape[0]; i++) {
+  for (size_t i = 0; i < buf.shape[0]; i++) {
      converted_point[i] = ((ScalarType *)buf.ptr)[i];
   }
+
   return converted_point;
 }
 
@@ -574,6 +577,15 @@ class PyLSHNearestNeighborTableDenseDouble {
         new OuterLSHQueryPool(std::move(inner_query_pool)));
   }
 
+  void insert(OuterNumPyArray point) {
+      InnerVector converted_point = numpy_to_array_point(point);
+      table_->insert(converted_point);
+  }
+
+  void remove(int_fast64_t point_index) {
+      table_->remove(point_index);
+  }
+
  private:
   std::shared_ptr<InnerLSHTable> table_;
 };
@@ -665,7 +677,7 @@ PYBIND11_MODULE(_falconn, m) {
            py::arg("point_index") = -1)
        .def("insert",
            &PyLSHNearestNeighborTableDenseFloat::insert,
-           py::arg("points") = -1);
+           py::arg("point") = -1);
   // we do not expose a constructor
   py::class_<PyLSHNearestNeighborTableDenseDouble>(
       m, "PyLSHNearestNeighborTableDenseDouble")
@@ -675,7 +687,13 @@ PYBIND11_MODULE(_falconn, m) {
       .def("construct_query_pool",
            &PyLSHNearestNeighborTableDenseDouble::construct_query_pool,
            py::arg("num_probes") = -1, py::arg("max_num_candidates") = -1,
-           py::arg("num_query_objects") = 0);
+           py::arg("num_query_objects") = 0)
+      .def("remove",
+           &PyLSHNearestNeighborTableDenseDouble::remove,
+           py::arg("point_index") = -1)
+       .def("insert",
+           &PyLSHNearestNeighborTableDenseDouble::insert,
+           py::arg("point") = -1);
   m.def("construct_table_dense_float", &construct_table_dense_float, "");
   m.def("construct_table_dense_double", &construct_table_dense_double, "");
 

@@ -10,7 +10,6 @@
 #include <Eigen/Dense>
 
 #include "falconn_global.h"
-#include "core/data_storage.h"
 
 ///
 /// The main namespace.
@@ -251,8 +250,8 @@ class LSHNearestNeighborTable {
                        int_fast64_t num_query_objects = 0) const = 0;
 
   // pf add
-  virtual void insert(const PointType& points) = 0;
-  virtual void remove(int_fast64_t point_index) = 0;
+  virtual void insert(PointType point) = 0;
+  virtual void remove(int_fast32_t point_index) = 0;
 
   ///
   /// Virtual destructor.
@@ -493,7 +492,7 @@ struct PlainArrayPointSet {
 template <typename PointType, typename KeyType = int32_t,
           typename PointSet = std::vector<PointType>>
 std::unique_ptr<LSHNearestNeighborTable<PointType, KeyType>> construct_table(
-    const PointSet& points, const LSHConstructionParameters& params);
+    PointSet& points, const LSHConstructionParameters& params);
 
 }  // namespace falconn
 

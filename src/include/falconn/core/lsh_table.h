@@ -13,7 +13,6 @@
 
 #include "../falconn_global.h"
 #include "data_storage.h"
-#include "../lsh_nn_table.h"
 
 namespace falconn {
 namespace core {
@@ -61,7 +60,7 @@ template <typename PointType,  // the type of the data points to be stored
           typename LSH,        // the LSH family
           typename HashType,   // type returned by a set of k LSH functions
           typename HashTable,  // the low-level hash tables
-          typename DataStorageType = PlainArrayDataStorage<PointType, KeyType>>
+          typename DataStorageType = ArrayDataStorage<PointType, KeyType>>
 class StaticLSHTable
     : public BasicLSHTable<LSH, HashTable,
                            StaticLSHTable<PointType, KeyType, LSH, HashType,
@@ -250,38 +249,24 @@ class StaticLSHTable
     }
   };
 
-//  typedef Eigen::Matrix<PointType, Eigen::Dynamic, 1, Eigen::ColMajor>
-//      TransformedVectorType;
-
-  void insert(const DataStorageType& points) {
+  void insert(PointType point) {
       typename LSH::template BatchHash<DataStorageType> bh(*(this->lsh_));
       std::vector<HashType> table_hashes;
+      std::vector<PointType> points;
+      points.push_back(point);
 
-//      typedef Eigen::Matrix<PointType, Eigen::Dynamic, 1, Eigen::ColMajor>
-//          TransformedVectorType;
-
-//      TransformedVectorType tmp_vector_;
-//      using DataStorage = falconn::core::PlainArrayDataStorage<DenseVector<float>, KeyType>;
-//      const std::unique_ptr<DataStorage> res(std::move(new DataStorage(point.data(), point.rows(), point.cols())));
-//      std::unique_ptr<DataStorage> res(new DataStorage(point.data, points.num_points, points.dimension));
-//      PlainArrayDataStorage<PointType, int_fast64_t> converted_points1(point, 1, 128);
-
-//      this->lsh_->get_multiplied_vector_single_table(point, this->lsh_->get_l(),
-//                                                       &tmp_vector_);
-//      table_hashes = BatchHash<DataStorageType>::compute_hash_single_table(tmp_vector_);
-
-
-//      ArrayDataStorage<PointType, KeyType>
       for (int_fast32_t ii = 0; ii < this->lsh_->get_l(); ++ii) {
         bh.batch_hash_single_table(points, ii, &table_hashes);
-        this->hash_table_->insert(table_hashes.at(0), ii);
+        this->hash_table_->insert(table_hashes.at(0), ii, n_);
       }
+      n_ += 1;
   }
 
-  void remove(int_fast64_t point_index) {
+  void remove(int_fast32_t point_index) {
     for (int_fast32_t ii = 0; ii < this->lsh_->get_l(); ++ii) {
         this->hash_table_->remove(point_index, ii);
     }
+//    n_ -= 1;
   }
 
   private:

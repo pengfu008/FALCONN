@@ -1,6 +1,7 @@
 #ifndef __NN_QUERY_H__
 #define __NN_QUERY_H__
 
+#include <iostream>
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
