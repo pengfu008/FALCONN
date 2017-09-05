@@ -69,7 +69,8 @@ struct EuclideanDistanceDense {
   template <typename Derived1, typename Derived2>
   CoordinateType operator()(const Eigen::MatrixBase<Derived1>& p1,
                             const Eigen::MatrixBase<Derived2>& p2) {
-    return (p1 - p2).squaredNorm();
+//    return std::abs((p1 - p2).norm());
+      return 1/(1+(p1 - p2).norm());
   }
 };
 

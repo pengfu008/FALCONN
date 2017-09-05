@@ -64,6 +64,8 @@ class HeapBase {
 
   void resize(size_t new_size) { v_.resize(new_size); }
 
+  int_fast32_t get_element_size() { return num_elements_; }
+
  protected:
   int_fast32_t lchild(int_fast32_t x) { return 2 * x + 1; }
 

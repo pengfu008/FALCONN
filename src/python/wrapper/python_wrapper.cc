@@ -156,14 +156,13 @@ class PyLSHNearestNeighborQueryDenseFloat {
     return inner_entity_->find_nearest_neighbor(converted_query);
   }
 
-  std::vector<int32_t> find_k_nearest_neighbors(OuterNumPyArray q,
-                                                int_fast64_t k) {
+  std::vector<std::pair<int32_t, float>> find_k_nearest_neighbors(OuterNumPyArray q,
+                                                int_fast64_t k, float threshold) {
     InnerVector converted_query = numpy_to_array_point(q);
-    std::cout << '3' << std::endl;
 
     py::gil_scoped_release release;
-    std::vector<int32_t> result;
-    inner_entity_->find_k_nearest_neighbors(converted_query, k, &result);
+    std::vector<std::pair<int32_t, float>> result;
+    inner_entity_->find_k_nearest_neighbors(converted_query, k, threshold, &result);
     return result;
   }
 
@@ -238,12 +237,12 @@ class PyLSHNearestNeighborQueryPoolDenseFloat {
     return inner_entity_->find_nearest_neighbor(converted_query);
   }
 
-  std::vector<int32_t> find_k_nearest_neighbors(OuterNumPyArray q,
-                                                int_fast64_t k) {
+  std::vector<std::pair<int32_t, float>> find_k_nearest_neighbors(OuterNumPyArray q,
+                                                int_fast64_t k, float threshold) {
     InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
-    std::vector<int32_t> result;
-    inner_entity_->find_k_nearest_neighbors(converted_query, k, &result);
+    std::vector<std::pair<int32_t, float>> result;
+    inner_entity_->find_k_nearest_neighbors(converted_query, k, threshold, &result);
     return result;
   }
 
@@ -383,7 +382,7 @@ inline InnerVector numpy_to_array_point(OuterNumPyArray point) {
   }
 
   InnerVector converted_point(buf.shape[0]);
-  for (size_t i = 0; i < buf.shape[0]; i++) {
+  for (long i = 0; i < buf.shape[0]; i++) {
      converted_point[i] = ((ScalarType *)buf.ptr)[i];
   }
 
@@ -422,12 +421,12 @@ class PyLSHNearestNeighborQueryDenseDouble {
     return inner_entity_->find_nearest_neighbor(converted_query);
   }
 
-  std::vector<int32_t> find_k_nearest_neighbors(OuterNumPyArray q,
-                                                int_fast64_t k) {
+  std::vector<std::pair<int32_t, float>> find_k_nearest_neighbors(OuterNumPyArray q,
+                                                int_fast64_t k, float threshold) {
     InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
-    std::vector<int32_t> result;
-    inner_entity_->find_k_nearest_neighbors(converted_query, k, &result);
+    std::vector<std::pair<int32_t, float>> result;
+    inner_entity_->find_k_nearest_neighbors(converted_query, k, threshold, &result);
     return result;
   }
 
@@ -502,12 +501,12 @@ class PyLSHNearestNeighborQueryPoolDenseDouble {
     return inner_entity_->find_nearest_neighbor(converted_query);
   }
 
-  std::vector<int32_t> find_k_nearest_neighbors(OuterNumPyArray q,
-                                                int_fast64_t k) {
+  std::vector<std::pair<int32_t, float>> find_k_nearest_neighbors(OuterNumPyArray q,
+                                                int_fast64_t k, float threshold) {
     InnerVector converted_query = numpy_to_array_point(q);
     py::gil_scoped_release release;
-    std::vector<int32_t> result;
-    inner_entity_->find_k_nearest_neighbors(converted_query, k, &result);
+    std::vector<std::pair<int32_t, float>> result;
+    inner_entity_->find_k_nearest_neighbors(converted_query, k, threshold, &result);
     return result;
   }
 

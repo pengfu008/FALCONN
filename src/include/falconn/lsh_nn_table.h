@@ -66,8 +66,8 @@ class LSHNearestNeighborQuery {
   /// Find the keys of the k closest candidates in the probing sequence for q.
   /// The keys are returned in order of increasing distance to q.
   ///
-  virtual void find_k_nearest_neighbors(const PointType& q, int_fast64_t k,
-                                        std::vector<KeyType>* result) = 0;
+  virtual void find_k_nearest_neighbors(const PointType& q, int_fast64_t k, float threshold,
+                                        std::vector<std::pair<KeyType, float>>* result) = 0;
 
   ///
   /// Returns the keys corresponding to candidates in the probing sequence for q
@@ -153,8 +153,8 @@ class LSHNearestNeighborQueryPool {
   /// Find the keys of the k closest candidates in the probing sequence for q.
   /// See the documentation for LSHNearestNeighborQuery.
   ///
-  virtual void find_k_nearest_neighbors(const PointType& q, int_fast64_t k,
-                                        std::vector<KeyType>* result) = 0;
+  virtual void find_k_nearest_neighbors(const PointType& q, int_fast64_t k, float threshold,
+                                        std::vector<std::pair<KeyType, float>>* result) = 0;
 
   ///
   /// Returns the keys corresponding to candidates in the probing sequence for q

@@ -82,16 +82,16 @@ class NearestNeighborQuery {
 
   void find_k_nearest_neighbors(const LSHTablePointType& q,
                                 const ComparisonPointType& q_comp,
-                                int_fast64_t k, int_fast64_t num_probes,
+                                int_fast64_t k, float threshold, int_fast64_t num_probes,
                                 int_fast64_t max_num_candidates,
-                                std::vector<LSHTableKeyType>* result) {
+                                std::vector<std::pair<LSHTableKeyType, float>>* result) {
     if (result == nullptr) {
       throw NearestNeighborQueryError("Results vector pointer is nullptr.");
     }
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    std::vector<LSHTableKeyType>& res = *result;
+    std::vector<std::pair<LSHTableKeyType, float>>& res = *result;
     res.clear();
 
     table_query_->get_unique_candidates(q, num_probes, max_num_candidates,
@@ -108,8 +108,11 @@ class NearestNeighborQuery {
     int_fast64_t initially_inserted = 0;
     for (; initially_inserted < k; ++initially_inserted) {
       if (iter.is_valid()) {
-        heap_.insert_unsorted(-dst_(q_comp, iter.get_point()), iter.get_key());
-        ++iter;
+        float dis = dst_(q_comp, iter.get_point());
+        if (dis >= threshold) {
+          heap_.insert_unsorted(dis, iter.get_key());
+          ++iter;
+        }
       } else {
         break;
       }
@@ -119,18 +122,19 @@ class NearestNeighborQuery {
       heap_.heapify();
       while (iter.is_valid()) {
         DistanceType cur_distance = dst_(q_comp, iter.get_point());
-        if (cur_distance < -heap_.min_key()) {
+        if (cur_distance > heap_.min_key()) {
           heap_.replace_top(-cur_distance, iter.get_key());
         }
         ++iter;
       }
     }
 
-    res.resize(initially_inserted);
+    res.resize(heap_.get_element_size(), std::make_pair(0, 0));
     std::sort(heap_.get_data().begin(),
               heap_.get_data().begin() + initially_inserted);
     for (int_fast64_t ii = 0; ii < initially_inserted; ++ii) {
-      res[ii] = heap_.get_data()[initially_inserted - ii - 1].data;
+      res[ii].first = heap_.get_data()[initially_inserted - ii - 1].data;
+      res[ii].second = heap_.get_data()[initially_inserted - ii - 1].key;
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();

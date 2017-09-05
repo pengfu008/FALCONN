@@ -347,9 +347,9 @@ class LSHNNQueryWrapper : public LSHNearestNeighborQuery<PointType, KeyType> {
                                                      max_num_candidates_);
   }
 
-  void find_k_nearest_neighbors(const PointType& q, int_fast64_t k,
-                                std::vector<KeyType>* result) {
-    internal_nn_query_->find_k_nearest_neighbors(q, q, k, num_probes_,
+  void find_k_nearest_neighbors(const PointType& q, int_fast64_t k, float threshold,
+                                std::vector<std::pair<KeyType, float>>* result) {
+    internal_nn_query_->find_k_nearest_neighbors(q, q, k, threshold, num_probes_,
                                                  max_num_candidates_, result);
   }
 
@@ -447,12 +447,11 @@ class LSHNNQueryPool : public LSHNearestNeighborQueryPool<PointType, KeyType> {
     return res;
   }
 
-  void find_k_nearest_neighbors(const PointType& q, int_fast64_t k,
-                                std::vector<KeyType>* result) {
+  void find_k_nearest_neighbors(const PointType& q, int_fast64_t k, float threshold,
+                                std::vector<std::pair<KeyType, float>>* result) {
     int_fast32_t query_index = get_query_index_and_lock();
-    std::cout << '5' << std::endl;
     internal_nn_queries_[query_index]->find_k_nearest_neighbors(
-        q, q, k, num_probes_, max_num_candidates_, result);
+        q, q, k, threshold, num_probes_, max_num_candidates_, result);
     unlock_query(query_index);
   }
 
