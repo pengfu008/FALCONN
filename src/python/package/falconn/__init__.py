@@ -89,7 +89,7 @@ class Queriable:
                 'query dimension mismatch: {} expected, but {} found'.format(
                     self._parent._params.dimension, query.shape[0]))
 
-    def find_k_nearest_neighbors(self, query, k):
+    def find_k_nearest_neighbors(self, query, k, threshold):
         """Retrieve the closest `k` neighbors to `query`.
 
         Find the keys of the `k` closest candidates in the probing
@@ -106,7 +106,7 @@ class Queriable:
         self._check_query(query)
         if k <= 0:
             raise ValueError('k must be positive rather than {}'.format(k))
-        return self._inner_entity.find_k_nearest_neighbors(query, k)
+        return self._inner_entity.find_k_nearest_neighbors(query, k, threshold)
 
     def find_near_neighbors(self, query, threshold):
         """Find all the points within `threshold` distance from `query`.
