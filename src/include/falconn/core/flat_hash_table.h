@@ -69,7 +69,7 @@ class FlatHashTable {
     std::sort(indices_temp.begin(), indices_temp.end(), comp);
 
     IndexType cur_index = 0;
-    indices_.resize(indices_temp.size() * 2);
+    indices_.resize(int(indices_temp.size() * 1.5));
     IndexType cur_temp_index = 0;
     while (cur_temp_index < static_cast<IndexType>(indices_temp.size())) {
       IndexType end_index = cur_index;
@@ -83,9 +83,9 @@ class FlatHashTable {
                keys[indices_temp[cur_temp_index]] == keys[indices_temp[end_temp_index]]);
 
       // 在每个bucket预留一些位置，为insert数据节省时间
-      int_fast16_t reserved_size = this->get_reserved_size(end_index - cur_index);
+      int_fast32_t reserved_size = this->get_reserved_size(end_index - cur_index);
       IndexType valid_end_index = end_index;
-      for (int_fast8_t j = 0; j < reserved_size; j++) {
+      for (int_fast32_t j = 0; j < reserved_size; j++) {
         this->fill_indices(end_index, -1);
         end_index++;
       }
@@ -133,8 +133,8 @@ class FlatHashTable {
         indices_.at(index) = dataset_size;
     } else {
         indices_.insert(indices_.begin() + index, dataset_size);
-        int_fast16_t reserved_size = this->get_reserved_size(bucket_list_.at(key).second);
-        for (int_fast16_t i = 0; i < reserved_size; i++) {
+        int_fast32_t reserved_size = this->get_reserved_size(bucket_list_.at(key).second);
+        for (int_fast32_t i = 0; i < reserved_size; i++) {
             indices_.insert(indices_.begin() + index + i + 1, -1);
         }
 
@@ -244,15 +244,15 @@ class FlatHashTable {
   }
 
  private:
-        int_fast16_t get_reserved_size(int bucket_size) {
-        int_fast16_t deserved_size = int_fast16_t(bucket_size/5);
-        int_fast16_t reserved_size = deserved_size > 3 ? deserved_size : 3;
+        int_fast32_t get_reserved_size(int bucket_size) {
+        int_fast32_t deserved_size = int_fast16_t(bucket_size/5);
+        int_fast32_t reserved_size = deserved_size > min_reserved_pos_ ? deserved_size : min_reserved_pos_;
         return reserved_size;
     }
 
     void fill_indices(IndexType index, ValueType value) {
-        if (indices_.size() <= index) {
-            indices_.resize(index * 2);
+        if (IndexType(indices_.size()) <= index) {
+            indices_.resize(int(index * 1.2));
         }
         indices_[index] = value;
     }
@@ -260,7 +260,7 @@ class FlatHashTable {
 
  private:
   IndexType num_buckets_ = -1;
-  int_fast16_t min_reserved_pos_ = 3;
+  int_fast32_t min_reserved_pos_ = 3;
   bool entries_added_ = false;
   // the pair contains start index and length
   std::vector<std::pair<IndexType, IndexType>> bucket_list_;
