@@ -122,19 +122,26 @@ class NearestNeighborQuery {
       heap_.heapify();
       while (iter.is_valid()) {
         DistanceType cur_distance = dst_(q_comp, iter.get_point());
-        if (cur_distance > heap_.min_key()) {
-          heap_.replace_top(-cur_distance, iter.get_key());
+        if (heap_.get_element_size() < k) {
+            if (cur_distance >= threshold) {
+              heap_.insert_unsorted(cur_distance, iter.get_key());
+            }
+        } else {
+            if (cur_distance > heap_.min_key()) {
+              heap_.replace_top(cur_distance, iter.get_key());
+            }
         }
         ++iter;
       }
     }
 
-    res.resize(heap_.get_element_size(), std::make_pair(0, 0));
+    int_fast32_t real_size = heap_.get_element_size();
+    res.resize(real_size, std::make_pair(0, 0));
     std::sort(heap_.get_data().begin(),
-              heap_.get_data().begin() + initially_inserted);
-    for (int_fast64_t ii = 0; ii < initially_inserted; ++ii) {
-      res[ii].first = heap_.get_data()[initially_inserted - ii - 1].data;
-      res[ii].second = heap_.get_data()[initially_inserted - ii - 1].key;
+              heap_.get_data().begin() + real_size);
+    for (int_fast64_t ii = 0; ii < real_size; ++ii) {
+      res[ii].first = heap_.get_data()[real_size - ii - 1].data;
+      res[ii].second = heap_.get_data()[real_size - ii - 1].key;
     }
 
     auto end_time = std::chrono::high_resolution_clock::now();

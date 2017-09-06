@@ -58,34 +58,45 @@ class FlatHashTable {
     entries_added_ = true;
 
     KeyComparator comp(keys);
-    indices_.resize(keys.size());
-    for (IndexType ii = 0; static_cast<size_t>(ii) < indices_.size(); ++ii) {
+    std::vector<ValueType> indices_temp;
+    indices_temp.resize(keys.size());
+    for (IndexType ii = 0; static_cast<size_t>(ii) < indices_temp.size(); ++ii) {
       if (keys[ii] >= static_cast<KeyType>(num_buckets_) || keys[ii] < 0) {
         throw FlatHashTableError("Key value out of range.");
       }
-      indices_[ii] = ii;
+      indices_temp[ii] = ii;
     }
-    std::sort(indices_.begin(), indices_.end(), comp);
+    std::sort(indices_temp.begin(), indices_temp.end(), comp);
 
     IndexType cur_index = 0;
-    while (cur_index < static_cast<IndexType>(indices_.size())) {
+    indices_.resize(indices_temp.size() * 2);
+    IndexType cur_temp_index = 0;
+    while (cur_temp_index < static_cast<IndexType>(indices_temp.size())) {
       IndexType end_index = cur_index;
+      IndexType end_temp_index = cur_temp_index;
+
       do {
-        end_index += 1;
-      } while (end_index < static_cast<IndexType>(indices_.size()) &&
-               keys[indices_[cur_index]] == keys[indices_[end_index]]);
+        this->fill_indices(end_index, indices_temp[end_temp_index]);
+        end_index++;
+        end_temp_index++;
+      } while (end_temp_index < static_cast<IndexType>(indices_temp.size()) &&
+               keys[indices_temp[cur_temp_index]] == keys[indices_temp[end_temp_index]]);
 
       // 在每个bucket预留一些位置，为insert数据节省时间
-//      IndexType valid_end_index = end_index;
-//      for (int_fast8_t j = 0; j < reserved_pos_; j++) {
-//        indices_.insert(indices_.begin() + end_index, -1);
-//        end_index++;
-//      }
+      int_fast16_t reserved_size = this->get_reserved_size(end_index - cur_index);
+      IndexType valid_end_index = end_index;
+      for (int_fast8_t j = 0; j < reserved_size; j++) {
+        this->fill_indices(end_index, -1);
+        end_index++;
+      }
 
       bucket_list_[keys[indices_[cur_index]]].first = cur_index;
-      bucket_list_[keys[indices_[cur_index]]].second = end_index - cur_index;  //valid_end_index
+      bucket_list_[keys[indices_[cur_index]]].second = valid_end_index - cur_index;
       cur_index = end_index;
+      cur_temp_index = end_temp_index;
     }
+
+    indices_.resize(cur_index);
   }
 
   void insert(IndexType key, int_fast64_t dataset_size) {
@@ -122,13 +133,14 @@ class FlatHashTable {
         indices_.at(index) = dataset_size;
     } else {
         indices_.insert(indices_.begin() + index, dataset_size);
-        for (int_fast8_t i = 0; i < reserved_pos_; i++) {
+        int_fast16_t reserved_size = this->get_reserved_size(bucket_list_.at(key).second);
+        for (int_fast16_t i = 0; i < reserved_size; i++) {
             indices_.insert(indices_.begin() + index + i + 1, -1);
         }
 
         for (uint_fast32_t i = key + 1; i < bucket_list_.size(); i++) {
             if (bucket_list_.at(i).second > 0) {
-              bucket_list_.at(i).first += 1 + reserved_pos_;
+              bucket_list_.at(i).first += 1 + reserved_size;
             }
         }
     }
@@ -142,23 +154,30 @@ class FlatHashTable {
       int indices_index = std::find(indices_.begin(), indices_.end(), point_index) - indices_.begin();
 
 //      indices_.erase(indices_.begin() + indices_index);
-      uint_fast32_t bucket_index = 0;
-      for (; bucket_index < bucket_list_.size(); bucket_index++)
+      uint_fast32_t cur_bucket_index = 0;
+      KeyType next_bucket_first = 0;
+      for (uint_fast32_t bucket_index = 0; bucket_index < bucket_list_.size(); bucket_index++)
       {
           // 找出要删除的index在哪个bucket_list中
           if (indices_index < bucket_list_.at(bucket_index).first) {
-              bucket_index -= 1;
+              next_bucket_first = bucket_list_.at(bucket_index).first;
               break;
+          }
+
+          if (bucket_list_.at(bucket_index).first != 0) {
+              cur_bucket_index = bucket_index;
           }
       }
 
-      KeyType next_bucket_first = 0;
-      for (KeyType i = bucket_index + 1; i < bucket_list_.size(); i++) {
-          if (bucket_list_.at(i).first != 0) {
-              next_bucket_first = bucket_list_.at(i).first;
-              break;
-          }
-      }
+
+
+//      KeyType next_bucket_first = 0;
+//      for (KeyType i = bucket_index + 1; i < bucket_list_.size(); i++) {
+//          if (bucket_list_.at(i).first != 0) {
+//              next_bucket_first = bucket_list_.at(i).first;
+//              break;
+//          }
+//      }
       if (next_bucket_first == 0) {
           next_bucket_first = indices_.size();
       }
@@ -169,9 +188,9 @@ class FlatHashTable {
       }
       indices_.at(next_bucket_first-1) = -1;
 
-      bucket_list_.at(bucket_index).second -= 1;
-      if (bucket_list_.at(bucket_index).second == 0) {
-          bucket_list_.at(bucket_index).first = 0;
+      bucket_list_.at(cur_bucket_index).second -= 1;
+      if (bucket_list_.at(cur_bucket_index).second == 0) {
+          bucket_list_.at(cur_bucket_index).first = 0;
       }
 
 //      for (uint_fast32_t i = bucket_index + 1; i < bucket_list_.size(); i++) {
@@ -225,8 +244,23 @@ class FlatHashTable {
   }
 
  private:
+        int_fast16_t get_reserved_size(int bucket_size) {
+        int_fast16_t deserved_size = int_fast16_t(bucket_size/5);
+        int_fast16_t reserved_size = deserved_size > 3 ? deserved_size : 3;
+        return reserved_size;
+    }
+
+    void fill_indices(IndexType index, ValueType value) {
+        if (indices_.size() <= index) {
+            indices_.resize(index * 2);
+        }
+        indices_[index] = value;
+    }
+
+
+ private:
   IndexType num_buckets_ = -1;
-  int_fast8_t reserved_pos_ = 3;
+  int_fast16_t min_reserved_pos_ = 3;
   bool entries_added_ = false;
   // the pair contains start index and length
   std::vector<std::pair<IndexType, IndexType>> bucket_list_;
